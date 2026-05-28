@@ -115,7 +115,7 @@ async function callAPI(
   }
 }
 
-const SYSTEM_PROMPT = `你是一个深度思考分析助手。你的任务是与用户讨论他们的想法，并在每次回复中提供结构化的分析。
+const SYSTEM_PROMPT = (modelName: string, providerName: string) => `你是${providerName}的${modelName}模型。你是一个深度思考分析助手。你的任务是与用户讨论他们的想法，并在每次回复中提供结构化的分析。
 
 ## 你的工作方式
 1. 先像朋友一样自然地与用户对话，帮他们深化想法
@@ -159,7 +159,9 @@ export async function chat(
   conversationHistory: { role: 'user' | 'assistant'; content: string }[],
   settings: AppSettings,
 ): Promise<{ reply: string; analysis: AnalysisResult | null }> {
-  const fullText = await callAPI(SYSTEM_PROMPT, conversationHistory, settings);
+  const providerName = settings.provider === 'deepseek' ? 'DeepSeek' : settings.provider === 'anthropic' ? 'Anthropic Claude' : 'OpenAI 兼容';
+  const modelName = settings.model || 'unknown';
+  const fullText = await callAPI(SYSTEM_PROMPT(modelName, providerName), conversationHistory, settings);
 
   const analysisMatch = fullText.match(/\[ANALYSIS\]\s*([\s\S]*?)\s*\[\/ANALYSIS\]/);
   let reply = fullText;

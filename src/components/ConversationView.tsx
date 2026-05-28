@@ -200,6 +200,11 @@ export default function ConversationView({ conversationId, settings, onTitleChan
           </button>
           <div className="flex-1 font-medium text-slate-800 truncate">{convTitle}</div>
 
+          {/* Model badge */}
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium shrink-0">
+            {settings.provider === 'deepseek' ? 'DeepSeek' : settings.provider === 'anthropic' ? 'Claude' : 'API'} · {settings.model?.replace('deepseek-', '').replace('claude-', '') || '?'}
+          </span>
+
           {/* Stage selector */}
           <div className="relative">
             <button

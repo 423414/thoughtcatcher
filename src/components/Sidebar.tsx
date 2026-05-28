@@ -25,7 +25,12 @@ const stageColors: Record<string, string> = {
   completed: 'bg-slate-200 text-slate-500',
 };
 
-export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onOpenSettings }: Props) {
+interface SidebarProps extends Props {
+  modelName?: string;
+  providerName?: string;
+}
+
+export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onOpenSettings, modelName, providerName }: SidebarProps) {
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [filterStage, setFilterStage] = useState<string | null>(null);
 
@@ -66,6 +71,11 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
           <Plus className="w-4 h-4" />
           新建想法
         </button>
+        {providerName && modelName && (
+          <div className="mt-2 text-[10px] text-indigo-300 text-center opacity-70">
+            {providerName} · {modelName.replace('deepseek-', '').replace('claude-', '')}
+          </div>
+        )}
       </div>
 
       {/* Filters */}

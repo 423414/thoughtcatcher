@@ -60,6 +60,8 @@ export default function Layout({ settings, onOpenSettings }: Props) {
           onNew={handleNew}
           onDelete={handleDelete}
           onOpenSettings={onOpenSettings}
+          providerName={settings.provider === 'deepseek' ? 'DeepSeek' : settings.provider === 'anthropic' ? 'Claude' : 'API'}
+          modelName={settings.model || '?'}
         />
         {conversations.length > 0 && (
           <button
