@@ -1,23 +1,28 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Conversation, AppSettings } from '../types';
 import { getConversations, createConversation, softDeleteConversation, restoreConversation, permanentDeleteConversation } from '../db';
+import { pushToCloud, pullFromCloud } from '../services/sync';
 import Sidebar from './Sidebar';
 import ConversationView from './ConversationView';
 import ReviewPanel from './ReviewPanel';
 import TrashView from './TrashView';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, User, LogOut, Cloud, CloudDownload } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
   onOpenSettings: () => void;
+  onOpenLogin: () => void;
+  user: { username: string } | null;
+  onLogout: () => void;
 }
 
-export default function Layout({ settings, onOpenSettings }: Props) {
+export default function Layout({ settings, onOpenSettings, onOpenLogin, user, onLogout }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showReview, setShowReview] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
 
   const loadList = useCallback(async () => {
     setConversations(await getConversations());
@@ -51,6 +56,29 @@ export default function Layout({ settings, onOpenSettings }: Props) {
     setSidebarOpen(false);
   }, []);
 
+  const handlePush = async () => {
+    setSyncMsg('上传中...');
+    try {
+      const { uploaded } = await pushToCloud();
+      setSyncMsg(`已上传 ${uploaded} 个想法`);
+    } catch (e: unknown) {
+      setSyncMsg(e instanceof Error ? e.message : '上传失败');
+    }
+    setTimeout(() => setSyncMsg(''), 3000);
+  };
+
+  const handlePull = async () => {
+    setSyncMsg('下载中...');
+    try {
+      const { downloaded } = await pullFromCloud();
+      await loadList();
+      setSyncMsg(`已下载 ${downloaded} 个想法`);
+    } catch (e: unknown) {
+      setSyncMsg(e instanceof Error ? e.message : '下载失败');
+    }
+    setTimeout(() => setSyncMsg(''), 3000);
+  };
+
   return (
     <div className="h-full flex bg-gradient-to-br from-indigo-50 via-white to-amber-50/30">
       {sidebarOpen && (
@@ -70,6 +98,35 @@ export default function Layout({ settings, onOpenSettings }: Props) {
           providerName={settings.provider === 'deepseek' ? 'DeepSeek' : settings.provider === 'anthropic' ? 'Claude' : 'API'}
           modelName={settings.model || '?'}
         />
+
+        {/* User section */}
+        <div className="border-t border-slate-200 p-3 space-y-2">
+          {user ? (
+            <>
+              <div className="flex items-center gap-2 text-xs text-slate-600 px-1">
+                <User className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="font-medium truncate">{user.username}</span>
+                <button onClick={onLogout} className="ml-auto text-slate-400 hover:text-red-500" title="退出登录">
+                  <LogOut className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={handlePush} className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors font-medium">
+                  <Cloud className="w-3 h-3" /> 上传
+                </button>
+                <button onClick={handlePull} className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors font-medium">
+                  <CloudDownload className="w-3 h-3" /> 下载
+                </button>
+              </div>
+              {syncMsg && <p className="text-[10px] text-center text-slate-500">{syncMsg}</p>}
+            </>
+          ) : (
+            <button onClick={onOpenLogin} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors text-xs font-medium">
+              <User className="w-3.5 h-3.5" /> 登录同步数据
+            </button>
+          )}
+        </div>
+
         {conversations.length > 0 && (
           <button onClick={() => { setShowReview(true); setActiveId(null); setShowTrash(false); setSidebarOpen(false); }} className="m-3 p-2 flex items-center justify-center gap-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors text-xs">
             <BarChart3 className="w-3.5 h-3.5" /> 回顾简报
@@ -87,11 +144,7 @@ export default function Layout({ settings, onOpenSettings }: Props) {
             onMenuClick={() => setSidebarOpen(true)}
           />
         ) : showTrash ? (
-          <TrashView
-            onRestore={async (id) => { await restoreConversation(id); await loadList(); }}
-            onPermanentDelete={async (id) => { await permanentDeleteConversation(id); }}
-            onRefresh={loadList}
-          />
+          <TrashView onRestore={async (id) => { await restoreConversation(id); await loadList(); }} onPermanentDelete={async (id) => { await permanentDeleteConversation(id); }} onRefresh={loadList} />
         ) : showReview ? (
           <ReviewPanel conversations={conversations} settings={settings} onClose={() => setShowReview(false)} />
         ) : (

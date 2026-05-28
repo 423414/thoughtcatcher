@@ -1,18 +1,45 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSettings } from './hooks/useSettings';
 import Layout from './components/Layout';
 import SettingsView from './components/SettingsView';
+import LoginView from './components/LoginView';
 import RandomReminder from './components/RandomReminder';
 import UpdatePrompt from './components/UpdatePrompt';
+import { getToken, logout as apiLogout } from './services/api';
 
-type View = 'main' | 'settings';
+type View = 'main' | 'settings' | 'login';
 
 function App() {
   const { settings, update, loaded } = useSettings();
   const [view, setView] = useState<View>('main');
+  const [user, setUser] = useState<{ username: string } | null>(null);
+
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      // Try to get user info
+      fetch('https://thoughtcatcher-api.liuyurun16.workers.dev/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()).then((d) => {
+        if (d.user) setUser(d.user);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const handleLogin = useCallback((u: { username: string }) => {
+    setUser(u);
+    setView('main');
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    apiLogout();
+    setUser(null);
+  }, []);
 
   const handleOpenSettings = useCallback(() => setView('settings'), []);
   const handleCloseSettings = useCallback(() => setView('main'), []);
+  const handleOpenLogin = useCallback(() => setView('login'), []);
+  const handleCloseLogin = useCallback(() => setView('main'), []);
 
   if (!loaded) {
     return <div className="h-full flex items-center justify-center"><div className="text-slate-400">加载中...</div></div>;
@@ -26,9 +53,13 @@ function App() {
     return <SettingsView settings={settings} onUpdate={update} onClose={handleCloseSettings} />;
   }
 
+  if (view === 'login') {
+    return <LoginView onLogin={handleLogin} onClose={handleCloseLogin} />;
+  }
+
   return (
     <>
-      <Layout settings={settings} onOpenSettings={handleOpenSettings} />
+      <Layout settings={settings} onOpenSettings={handleOpenSettings} onOpenLogin={handleOpenLogin} user={user} onLogout={handleLogout} />
       <RandomReminder />
       <UpdatePrompt />
     </>

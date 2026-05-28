@@ -4,6 +4,7 @@ import { Lightbulb, Loader2 } from 'lucide-react';
 
 interface Props {
   onLogin: (user: { username: string }) => void;
+  onClose?: () => void;
 }
 
 export default function LoginView({ onLogin }: Props) {
