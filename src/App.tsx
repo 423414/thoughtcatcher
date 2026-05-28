@@ -15,11 +15,7 @@ function App() {
   const handleCloseSettings = useCallback(() => setView('main'), []);
 
   if (!loaded) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-slate-400">加载中...</div>
-      </div>
-    );
+    return <div className="h-full flex items-center justify-center"><div className="text-slate-400">加载中...</div></div>;
   }
 
   if (!settings.apiKey) {

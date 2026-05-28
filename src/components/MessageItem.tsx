@@ -3,7 +3,9 @@ import type { Message } from '../types';
 import AnalysisCard from './AnalysisCard';
 import MindMapView from './MindMapView';
 import ColoredMarkdown from './ColoredMarkdown';
-import { User, Sparkles, FileText, GitBranch, ChevronDown, ChevronUp } from 'lucide-react';
+import { useRef } from 'react';
+import { User, Sparkles, FileText, GitBranch, ChevronDown, ChevronUp, Image } from 'lucide-react';
+import { exportElementAsPNG } from '../utils/imageExport';
 
 interface Props {
   message: Message;
@@ -12,9 +14,16 @@ interface Props {
 export default function MessageItem({ message }: Props) {
   const [viewMode, setViewMode] = useState<'text' | 'mindmap'>('text');
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const isUser = message.role === 'user';
   const highlightTerms = message.analysis?.terms?.map((t) => t.term) || [];
+
+  const handleExport = async () => {
+    if (contentRef.current) {
+      await exportElementAsPNG(contentRef.current, `想法捕手-${isUser ? '对话' : 'AI回复'}`);
+    }
+  };
 
   return (
     <div className={`px-4 py-4 border-b border-slate-100 ${isUser ? 'msg-user' : 'msg-ai'}`}>
@@ -31,8 +40,15 @@ export default function MessageItem({ message }: Props) {
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
             {isUser ? '你' : 'AI 助手'}
           </span>
+          <button
+            onClick={handleExport}
+            className="ml-auto p-1 rounded text-slate-400 hover:text-indigo-500 hover:bg-slate-100 transition-colors"
+            title="导出为图片"
+          >
+            <Image className="w-3.5 h-3.5" />
+          </button>
           {!isUser && (
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setViewMode('text')}
                 className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -60,11 +76,13 @@ export default function MessageItem({ message }: Props) {
         </div>
 
         {/* Content */}
-        {viewMode === 'text' ? (
-          <ColoredMarkdown content={message.content} terms={highlightTerms} />
-        ) : (
-          <MindMapView content={message.content} />
-        )}
+        <div ref={contentRef}>
+          {viewMode === 'text' ? (
+            <ColoredMarkdown content={message.content} terms={highlightTerms} />
+          ) : (
+            <MindMapView content={message.content} />
+          )}
+        </div>
 
         {/* Analysis card */}
         {!isUser && message.analysis && (

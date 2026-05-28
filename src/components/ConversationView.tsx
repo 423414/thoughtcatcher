@@ -13,7 +13,7 @@ import NoteView from './NoteView';
 import TimelineView from './TimelineView';
 import {
   Menu, FileText, Loader2, AlertCircle, MessageCircle,
-  Shuffle, History, Globe, Flag, ChevronDown, Clock,
+  Shuffle, History, Globe, Flag, ChevronDown, Clock, Paperclip,
 } from 'lucide-react';
 
 interface Props {
@@ -353,15 +353,35 @@ export default function ConversationView({ conversationId, settings, onTitleChan
       {/* Input */}
       <div className="p-4 border-t border-slate-200 shrink-0">
         <div className="flex gap-3">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="输入你的想法... (Enter 发送, Shift+Enter 换行)"
-            rows={2}
-            className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
-            disabled={loading}
-          />
+          <div className="flex-1 relative">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="输入你的想法... (Enter 发送, Shift+Enter 换行)"
+              rows={2}
+              className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+              disabled={loading}
+            />
+            <label className="absolute right-2 bottom-2 p-1 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-slate-100 cursor-pointer transition-colors" title="上传图片">
+              <Paperclip className="w-4 h-4" />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const dataUrl = reader.result as string;
+                    setInput((prev) => prev + `\n![${file.name}](${dataUrl})\n`);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+          </div>
           <button
             onClick={() => handleSend()}
             disabled={loading || !input.trim()}
