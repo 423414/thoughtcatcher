@@ -193,7 +193,7 @@ export default function ConversationView({ conversationId, settings, onTitleChan
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-2 border-b border-slate-200 shrink-0">
+      <div className="px-4 py-2 border-b border-indigo-200/50 bg-white/80 backdrop-blur shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={onMenuClick} className="lg:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
             <Menu className="w-5 h-5" />

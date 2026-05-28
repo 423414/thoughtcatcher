@@ -63,8 +63,8 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
   };
 
   return (
-    <div className="h-full flex items-start justify-center bg-slate-50 p-4 overflow-y-auto">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div className="h-full flex items-start justify-center bg-gradient-to-br from-indigo-50 via-white to-amber-50/30 p-4 overflow-y-auto">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-indigo-500/5 border border-indigo-100 p-6">
         {!forceSetup && (
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-slate-800">设置</h2>

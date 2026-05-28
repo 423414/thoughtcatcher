@@ -41,7 +41,7 @@ export default function Layout({ settings, onOpenSettings }: Props) {
   }, [loadList]);
 
   return (
-    <div className="h-full flex bg-white">
+    <div className="h-full flex bg-gradient-to-br from-indigo-50 via-white to-amber-50/30">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
