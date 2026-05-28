@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { AppSettings } from '../types';
-import { X, Key, Cpu, Zap, Server } from 'lucide-react';
+import { getAppSettings } from '../db';
+import { X, Key, Cpu, Zap, Server, Download, Upload } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
@@ -18,6 +19,8 @@ const models = [
 export default function SettingsView({ settings, onUpdate, onClose, forceSetup }: Props) {
   const [apiKey, setApiKey] = useState(settings.apiKey);
   const [saving, setSaving] = useState(false);
+  const [importMsg, setImportMsg] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -25,8 +28,42 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
     setSaving(false);
   };
 
+  const handleExport = async () => {
+    const all = await getAppSettings();
+    const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'thoughtcatcher-config.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (data.apiKey) setApiKey(data.apiKey);
+      await onUpdate({
+        apiKey: data.apiKey || settings.apiKey,
+        model: data.model || settings.model,
+        maxTokens: data.maxTokens || settings.maxTokens,
+        apiProxy: data.apiProxy || settings.apiProxy,
+      });
+      setImportMsg('配置导入成功！');
+      setTimeout(() => setImportMsg(''), 3000);
+    } catch {
+      setImportMsg('导入失败，请检查文件格式');
+      setTimeout(() => setImportMsg(''), 3000);
+    }
+  };
+
   return (
-    <div className="h-full flex items-center justify-center bg-slate-50 p-4">
+    <div className="h-full flex items-start justify-center bg-slate-50 p-4 overflow-y-auto">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         {!forceSetup && (
           <div className="flex items-center justify-between mb-6">
@@ -104,6 +141,7 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
             </div>
           </div>
 
+          {/* Save */}
           <button
             onClick={handleSave}
             disabled={!apiKey.trim() || saving}
@@ -111,6 +149,36 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
           >
             {saving ? '保存中...' : forceSetup ? '开始使用' : '保存设置'}
           </button>
+
+          {/* Import / Export */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleExport}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              导出配置
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              导入配置
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </div>
+          {importMsg && (
+            <p className={`text-xs text-center ${importMsg.includes('成功') ? 'text-emerald-600' : 'text-red-500'}`}>
+              {importMsg}
+            </p>
+          )}
         </div>
       </div>
     </div>
