@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import type { AppSettings } from '../types';
+import type { AppSettings, AIProvider } from '../types';
 import { getAppSettings } from '../db';
-import { X, Key, Cpu, Zap, Server, Download, Upload } from 'lucide-react';
+import { X, Key, Cpu, Zap, Server, Download, Upload, Globe } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
@@ -10,10 +10,20 @@ interface Props {
   forceSetup?: boolean;
 }
 
-const models = [
-  { value: 'claude-sonnet-4-6' as const, label: 'Claude Sonnet 4.6', desc: '平衡推荐 · 1M 上下文 · 日常深度分析' },
-  { value: 'claude-opus-4-7' as const, label: 'Claude Opus 4.7', desc: '最强分析 · 复杂推理 · 创意突破' },
-  { value: 'claude-haiku-4-5' as const, label: 'Claude Haiku 4.5', desc: '轻量快速 · 简单标签 · 低成本' },
+const anthropicModels = [
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', desc: '平衡推荐 · 1M 上下文 · 日常深度分析' },
+  { value: 'claude-opus-4-7', label: 'Claude Opus 4.7', desc: '最强分析 · 复杂推理 · 创意突破' },
+  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', desc: '轻量快速 · 简单标签 · 低成本' },
+];
+
+const deepseekModels = [
+  { value: 'deepseek-chat', label: 'DeepSeek Chat', desc: '通用对话 · 128K 上下文 · 国内直连' },
+  { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner', desc: '深度推理 · 复杂问题 · 思考链' },
+];
+
+const providers: { value: AIProvider; label: string; desc: string }[] = [
+  { value: 'deepseek', label: 'DeepSeek', desc: '国内直连 · 无需梯子' },
+  { value: 'anthropic', label: 'Anthropic Claude', desc: '顶级分析 · 需梯子' },
 ];
 
 export default function SettingsView({ settings, onUpdate, onClose, forceSetup }: Props) {
@@ -22,10 +32,18 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
   const [importMsg, setImportMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const isDeepSeek = settings.provider === 'deepseek';
+  const models = isDeepSeek ? deepseekModels : anthropicModels;
+
   const handleSave = async () => {
     setSaving(true);
     await onUpdate({ apiKey: apiKey.trim() });
     setSaving(false);
+  };
+
+  const handleProviderChange = async (provider: AIProvider) => {
+    const defaultModel = provider === 'deepseek' ? 'deepseek-chat' : 'claude-sonnet-4-6';
+    await onUpdate({ provider, model: defaultModel });
   };
 
   const handleExport = async () => {
@@ -33,11 +51,8 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
     const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'thoughtcatcher-config.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    a.href = url; a.download = 'thoughtcatcher-config.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -50,6 +65,7 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
       if (data.apiKey) setApiKey(data.apiKey);
       await onUpdate({
         apiKey: data.apiKey || settings.apiKey,
+        provider: data.provider || settings.provider,
         model: data.model || settings.model,
         maxTokens: data.maxTokens || settings.maxTokens,
         apiProxy: data.apiProxy || settings.apiProxy,
@@ -76,45 +92,57 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
 
         {forceSetup && (
           <div className="text-center mb-6">
-            <Zap className="w-12 h-12 text-violet-500 mx-auto mb-3" />
+            <Zap className="w-12 h-12 text-indigo-500 mx-auto mb-3" />
             <h2 className="text-xl font-bold text-slate-800 mb-1">欢迎使用想法捕手</h2>
-            <p className="text-sm text-slate-500">请先配置 Claude API Key 以开始使用</p>
+            <p className="text-sm text-slate-500">请先配置 AI 服务以开始使用</p>
           </div>
         )}
 
         <div className="space-y-5">
+          {/* Provider selection */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <Globe className="w-4 h-4" />
+              AI 服务商
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {providers.map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => handleProviderChange(p.value)}
+                  className={`p-3 rounded-xl border text-center transition-all ${
+                    settings.provider === p.value
+                      ? 'border-indigo-400 bg-indigo-50 shadow-sm'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="text-sm font-bold text-slate-800">{p.label}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{p.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* API Key */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <Key className="w-4 h-4" />
-              Claude API Key
+              {isDeepSeek ? 'DeepSeek' : 'Claude'} API Key
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+              placeholder={isDeepSeek ? 'sk-...' : 'sk-ant-...'}
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
             />
             <p className="text-xs text-slate-400 mt-1">
-              在 <a href="https://console.anthropic.com/" target="_blank" className="text-violet-600 hover:underline">console.anthropic.com</a> 获取密钥
+              {isDeepSeek ? (
+                <>在 <a href="https://platform.deepseek.com/" target="_blank" className="text-indigo-600 hover:underline">platform.deepseek.com</a> 获取密钥</>
+              ) : (
+                <>在 <a href="https://console.anthropic.com/" target="_blank" className="text-indigo-600 hover:underline">console.anthropic.com</a> 获取密钥</>
+              )}
             </p>
-          </div>
-
-          {/* API Proxy */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-              <Server className="w-4 h-4" />
-              API 代理地址（可选）
-            </label>
-            <input
-              type="text"
-              value={settings.apiProxy || ''}
-              onChange={(e) => onUpdate({ apiProxy: e.target.value.trim() })}
-              placeholder="留空则直连，或填入 https://your-proxy.com/v1/messages"
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
-            />
-            <p className="text-xs text-slate-400 mt-1">国内用户可配置代理地址转发 API 请求</p>
           </div>
 
           {/* Model selection */}
@@ -130,7 +158,7 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
                   onClick={() => onUpdate({ model: m.value })}
                   className={`w-full text-left p-3 rounded-xl border transition-colors ${
                     settings.model === m.value
-                      ? 'border-violet-400 bg-violet-50'
+                      ? 'border-indigo-400 bg-indigo-50'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -141,38 +169,38 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
             </div>
           </div>
 
-          {/* Save */}
+          {/* API Proxy */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <Server className="w-4 h-4" />
+              自定义 API 地址（可选）
+            </label>
+            <input
+              type="text"
+              value={settings.apiProxy || ''}
+              onChange={(e) => onUpdate({ apiProxy: e.target.value.trim() })}
+              placeholder={isDeepSeek ? '留空则使用 api.deepseek.com' : '留空则使用 api.anthropic.com'}
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-400 mt-1">如使用中转代理，在此填入地址</p>
+          </div>
+
           <button
             onClick={handleSave}
             disabled={!apiKey.trim() || saving}
-            className="w-full py-2.5 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-500/20"
           >
             {saving ? '保存中...' : forceSetup ? '开始使用' : '保存设置'}
           </button>
 
-          {/* Import / Export */}
           <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleExport}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              导出配置
+            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+              <Download className="w-4 h-4" /> 导出配置
             </button>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              导入配置
+            <button onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+              <Upload className="w-4 h-4" /> 导入配置
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-              className="hidden"
-            />
+            <input ref={fileRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
           </div>
           {importMsg && (
             <p className={`text-xs text-center ${importMsg.includes('成功') ? 'text-emerald-600' : 'text-red-500'}`}>

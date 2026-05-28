@@ -4,7 +4,8 @@ import type { AppSettings } from '../types';
 
 const defaults: AppSettings = {
   apiKey: '',
-  model: 'claude-sonnet-4-6',
+  provider: 'deepseek',
+  model: 'deepseek-chat',
   maxTokens: 8000,
   apiProxy: '',
 };

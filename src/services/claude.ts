@@ -1,22 +1,23 @@
 import type { AnalysisResult, AppSettings } from '../types';
 
-const API_BASE = 'https://api.anthropic.com/v1/messages';
+const API_BASE_ANTHROPIC = 'https://api.anthropic.com/v1/messages';
+const API_BASE_DEEPSEEK = 'https://api.deepseek.com/v1/chat/completions';
 const ANTHROPIC_VERSION = '2023-06-01';
 
-const MODEL_MAP: Record<AppSettings['model'], string> = {
+const ANTHROPIC_MODEL_MAP: Record<string, string> = {
   'claude-sonnet-4-6': 'claude-sonnet-4-6-20250514',
   'claude-opus-4-7': 'claude-opus-4-7-20250514',
   'claude-haiku-4-5': 'claude-haiku-4-5-20251001',
 };
 
-interface ClaudeMessage {
+interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-async function callClaude(
+async function callAPI(
   systemPrompt: string,
-  messages: ClaudeMessage[],
+  messages: ChatMessage[],
   settings: AppSettings,
   maxTokens?: number,
 ): Promise<string> {
@@ -24,36 +25,82 @@ async function callClaude(
     throw new Error('请先在设置中配置 API Key');
   }
 
-  const endpoint = settings.apiProxy ? settings.apiProxy : API_BASE;
+  const isDeepSeek = settings.provider === 'deepseek';
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': settings.apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-    },
-    body: JSON.stringify({
-      model: MODEL_MAP[settings.model],
-      max_tokens: maxTokens || settings.maxTokens || 8000,
-      system: systemPrompt,
-      messages: messages.map((m) => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content,
-      })),
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API 错误 ${response.status}`);
+  // Determine endpoint
+  let endpoint: string;
+  if (settings.apiProxy?.trim()) {
+    const proxy = settings.apiProxy.trim();
+    if (proxy.includes('@') && proxy.includes('://')) {
+      throw new Error('代理地址不能包含用户名密码');
+    }
+    try { new URL(proxy); } catch { throw new Error('代理地址格式无效'); }
+    endpoint = proxy;
+  } else {
+    endpoint = isDeepSeek ? API_BASE_DEEPSEEK : API_BASE_ANTHROPIC;
   }
 
-  const data = await response.json();
-  return data.content
-    .filter((block: { type: string }) => block.type === 'text')
-    .map((block: { text: string }) => block.text)
-    .join('\n');
+  if (isDeepSeek) {
+    // DeepSeek: OpenAI-compatible format
+    const systemMessage = { role: 'system', content: systemPrompt };
+    const chatMessages = [systemMessage, ...messages.map((m) => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content,
+    }))];
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model || 'deepseek-chat',
+        messages: chatMessages,
+        max_tokens: maxTokens || settings.maxTokens || 8000,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `DeepSeek API 错误 ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || '';
+  } else {
+    // Anthropic format
+    const anthropicModel = ANTHROPIC_MODEL_MAP[settings.model] || 'claude-sonnet-4-6-20250514';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': settings.apiKey,
+        'anthropic-version': ANTHROPIC_VERSION,
+      },
+      body: JSON.stringify({
+        model: anthropicModel,
+        max_tokens: maxTokens || settings.maxTokens || 8000,
+        system: systemPrompt,
+        messages: messages.map((m) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API 错误 ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.content
+      .filter((block: { type: string }) => block.type === 'text')
+      .map((block: { text: string }) => block.text)
+      .join('\n');
+  }
 }
 
 const SYSTEM_PROMPT = `你是一个深度思考分析助手。你的任务是与用户讨论他们的想法，并在每次回复中提供结构化的分析。
@@ -100,9 +147,8 @@ export async function chat(
   conversationHistory: { role: 'user' | 'assistant'; content: string }[],
   settings: AppSettings,
 ): Promise<{ reply: string; analysis: AnalysisResult | null }> {
-  const fullText = await callClaude(SYSTEM_PROMPT, conversationHistory, settings);
+  const fullText = await callAPI(SYSTEM_PROMPT, conversationHistory, settings);
 
-  // Parse analysis from the response
   const analysisMatch = fullText.match(/\[ANALYSIS\]\s*([\s\S]*?)\s*\[\/ANALYSIS\]/);
   let reply = fullText;
   let analysis: AnalysisResult | null = null;
@@ -120,9 +166,7 @@ export async function chat(
         todos: parsed.todos || [],
         suggestedTags: parsed.suggestedTags || [],
       };
-    } catch {
-      // Analysis parsing failed, return without analysis
-    }
+    } catch {}
   }
 
   return { reply, analysis };
@@ -136,7 +180,7 @@ export async function generateNote(
     .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
     .join('\n\n');
 
-  return callClaude(
+  return callAPI(
     `你是一个专业的笔记整理助手。根据用户和AI的对话内容，生成一份结构化的详细笔记。
 
 笔记应该包含以下结构（使用 Markdown）：
@@ -177,14 +221,8 @@ export async function socraticQuestion(
   messages: { role: 'user' | 'assistant'; content: string }[],
   settings: AppSettings,
 ): Promise<string> {
-  return callClaude(
-    `你是苏格拉底式提问者。不要直接给答案或建议，只用层层递进的问题帮用户挖深自己的思考。
-
-规则：
-- 每次只问 1-2 个问题
-- 问题要引导用户自己发现逻辑漏洞、隐藏假设、或新的可能性
-- 语气要温和、好奇，像哲学家与朋友的对话
-- 在问题前可以简短肯定用户的思考`,
+  return callAPI(
+    `你是苏格拉底式提问者。不要直接给答案或建议，只用层层递进的问题帮用户挖深自己的思考。每次只问 1-2 个问题。`,
     messages,
     settings,
     2000,
@@ -196,15 +234,9 @@ export async function generateCounterPerspective(
   settings: AppSettings,
 ): Promise<string> {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-  return callClaude(
-    `你是一个"魔鬼代言人"。从用户想法的对立面出发，提供一个有理有据的反方视角。
-
-要求：
-- 不是否定用户，而是帮用户看到盲区
-- 用"如果……那会怎样？"的假设语气
-- 提出 3-5 个关键质疑或替代方案
-- 最后给出一个平衡的总结`,
-    [{ role: 'user', content: `请从反面视角分析这个想法：\n\n${lastUserMsg?.content || ''}` }],
+  return callAPI(
+    `你是魔鬼代言人。从用户想法的对立面出发，提出 3-5 个有理有据的质疑或替代方案，帮用户看到盲区。`,
+    [{ role: 'user', content: `请从反面视角分析：\n\n${lastUserMsg?.content || ''}` }],
     settings,
     2000,
   );
@@ -215,14 +247,8 @@ export async function generateHistoricalAnalogy(
   settings: AppSettings,
 ): Promise<string> {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-  return callClaude(
-    `你是一个跨学科思想史专家。找出 2-3 个与用户想法最相似的**历史上真实存在的案例或思想**。
-
-要求：
-- 每个案例包含：背景（谁/什么）、相似点、最终结果或教训
-- 涵盖不同领域（商业/科技/艺术/科学等）
-- 总结这些案例对用户的启示
-- 不要只选择成功的案例，也要有失败案例`,
+  return callAPI(
+    `你是跨学科思想史专家。找出 2-3 个与用户想法最相似的历史上真实存在的案例。包含背景、相似点、最终结果。`,
     [{ role: 'user', content: `为以下想法找到历史类比：\n\n${lastUserMsg?.content || ''}` }],
     settings,
     2500,
@@ -235,29 +261,17 @@ export async function detectContradictions(
   settings: AppSettings,
 ): Promise<{ id: number; title: string; description: string }[]> {
   if (allConversations.length <= 1) return [];
-
   const summaries = allConversations
     .filter((c) => c.summary)
     .map((c) => `[ID:${c.id}] ${c.title}: ${c.summary}`)
     .join('\n');
-
-  const result = await callClaude(
-    `分析当前想法是否与用户之前的想法存在逻辑矛盾。如果有矛盾，列出具体冲突点。如果没有，返回空数组。
-
-返回格式（严格 JSON）：
-[{"id": 对话ID数字, "title": "矛盾想法标题", "description": "具体矛盾描述"}]
-
-如果无矛盾，返回：[]`,
+  const result = await callAPI(
+    `分析当前想法是否与用户之前的想法存在逻辑矛盾。返回严格 JSON 数组：[{"id": ID, "title": "标题", "description": "矛盾描述"}]。无矛盾返回 []。`,
     [{ role: 'user', content: `当前想法：${currentIdea}\n\n之前的想法：\n${summaries}` }],
     settings,
-    1000,
+    500,
   );
-
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(result.trim()); } catch { return []; }
 }
 
 export async function findRelatedIdeas(
@@ -266,27 +280,14 @@ export async function findRelatedIdeas(
   settings: AppSettings,
 ): Promise<number[]> {
   if (allConversations.length <= 1) return [];
-
-  const summaries = allConversations
-    .map((c) => `[ID:${c.id}] ${c.title}: ${c.summary}`)
-    .join('\n');
-
-  const result = await callClaude(
-    `分析当前想法与用户之前想法的关联度。找出与当前想法**高度相关**的对话（主题相似、可以互补、或者属于同一领域）。
-
-返回格式（严格 JSON 数字数组）：[id1, id2, ...]
-
-如果没有相关想法，返回：[]`,
+  const summaries = allConversations.map((c) => `[ID:${c.id}] ${c.title}: ${c.summary}`).join('\n');
+  const result = await callAPI(
+    `找出与当前想法高度相关的对话 ID。返回严格 JSON 数字数组：[id1, id2]。无相关返回 []。`,
     [{ role: 'user', content: `当前想法：${currentIdea}\n\n所有想法：\n${summaries}` }],
     settings,
-    500,
+    300,
   );
-
-  try {
-    return JSON.parse(result.trim());
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(result.trim()); } catch { return []; }
 }
 
 export async function generateWeeklyReview(
@@ -294,36 +295,11 @@ export async function generateWeeklyReview(
   settings: AppSettings,
 ): Promise<string> {
   const info = allConversations
-    .map(
-      (c, i) =>
-        `${i + 1}. ${c.title} [${c.stage}] [${c.tags.join(', ')}]\n   ${c.summary || '暂无总结'}`
-    )
+    .map((c, i) => `${i + 1}. ${c.title} [${c.stage}] [${c.tags.join(', ')}]\n   ${c.summary || '暂无总结'}`)
     .join('\n\n');
-
-  return callClaude(
-    `你是一个个人成长顾问。根据用户最近的所有想法，生成一份周度回顾简报。
-
-简报结构：
-## 本周思维概览
-（2-3 句总结：用户在关注什么领域、思维模式如何）
-
-## 关键主题
-- 主题1：涉及的想法的概要
-- 主题2：...
-
-## 进展与突破
-（哪些想法有实质性进展？哪些有了新的洞见？）
-
-## 待关注盲区
-（用户整体上忽略了什么？思考中有哪些系统性偏差？）
-
-## 下周建议
-- 建议1
-- 建议2
-...
-
-用温暖但专业的语气。长度 400-600 字。`,
-    [{ role: 'user', content: `以下是用户最近的想法清单：\n\n${info}` }],
+  return callAPI(
+    `你是个人成长顾问。根据用户最近的想法，生成一份周度回顾简报。包含：本周思维概览、关键主题、进展突破、待关注盲区、下周建议。温暖专业，400-600 字。`,
+    [{ role: 'user', content: `以下是用户最近的想法：\n\n${info}` }],
     settings,
     2000,
   );
@@ -331,16 +307,13 @@ export async function generateWeeklyReview(
 
 export async function generateTitle(userMessage: string, settings: AppSettings): Promise<string> {
   try {
-    const result = await callClaude(
+    const result = await callAPI(
       '你是一个标题生成器。只输出标题文本，不要任何额外内容。',
       [{ role: 'user', content: `为以下想法生成一个简洁的中文标题（10字以内，不要引号）：\n\n${userMessage}` }],
       settings,
       50,
     );
-    return result
-      .trim()
-      .replace(/^["'「『]|["'」』]$/g, '')
-      .slice(0, 20) || '新想法';
+    return result.trim().replace(/^["'「『]|["'」』]$/g, '').slice(0, 20) || '新想法';
   } catch {
     return '新想法';
   }

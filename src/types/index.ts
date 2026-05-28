@@ -69,9 +69,15 @@ export interface Note {
   createdAt: Date;
 }
 
+export type AIProvider = 'anthropic' | 'deepseek';
+
+export type AnthropicModel = 'claude-sonnet-4-6' | 'claude-opus-4-7' | 'claude-haiku-4-5';
+export type DeepseekModel = 'deepseek-chat' | 'deepseek-reasoner';
+
 export interface AppSettings {
   apiKey: string;
-  model: 'claude-sonnet-4-6' | 'claude-opus-4-7' | 'claude-haiku-4-5';
+  provider: AIProvider;
+  model: string;
   maxTokens: number;
   apiProxy: string;
 }
