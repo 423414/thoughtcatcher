@@ -5,14 +5,10 @@ compatibility_date = "2025-06-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "thoughtcatcher-db"
-database_id = ""
-
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "thoughtcatcher-files"
+database_id = "c2a82d6b-cc52-45e1-a725-fc0603e15841"
 
 [vars]
-JWT_SECRET = ""
+JWT_SECRET = "thoughtcatcher-jwt-secret-2026-make-this-long-and-random"
 
 [observability]
 enabled = true

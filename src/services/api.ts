@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://thoughtcatcher-api.your-domain.workers.dev';
+const API_URL = import.meta.env.VITE_API_URL || 'https://thoughtcatcher-api.liuyurun16.workers.dev';
 
 let token: string | null = localStorage.getItem('tc_token');
 
