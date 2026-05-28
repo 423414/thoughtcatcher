@@ -73,4 +73,5 @@ export interface AppSettings {
   apiKey: string;
   model: 'claude-sonnet-4-6' | 'claude-opus-4-7' | 'claude-haiku-4-5';
   maxTokens: number;
+  apiProxy: string;
 }

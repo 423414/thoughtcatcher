@@ -87,6 +87,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   apiKey: '',
   model: 'claude-sonnet-4-6',
   maxTokens: 8000,
+  apiProxy: '',
 };
 
 export async function getAppSettings(): Promise<AppSettings> {

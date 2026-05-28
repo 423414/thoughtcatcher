@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AppSettings } from '../types';
-import { X, Key, Cpu, Zap } from 'lucide-react';
+import { X, Key, Cpu, Zap, Server } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
@@ -62,6 +62,22 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
             <p className="text-xs text-slate-400 mt-1">
               在 <a href="https://console.anthropic.com/" target="_blank" className="text-violet-600 hover:underline">console.anthropic.com</a> 获取密钥
             </p>
+          </div>
+
+          {/* API Proxy */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <Server className="w-4 h-4" />
+              API 代理地址（可选）
+            </label>
+            <input
+              type="text"
+              value={settings.apiProxy || ''}
+              onChange={(e) => onUpdate({ apiProxy: e.target.value.trim() })}
+              placeholder="留空则直连，或填入 https://your-proxy.com/v1/messages"
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-400 mt-1">国内用户可配置代理地址转发 API 请求</p>
           </div>
 
           {/* Model selection */}

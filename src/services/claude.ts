@@ -24,7 +24,9 @@ async function callClaude(
     throw new Error('请先在设置中配置 API Key');
   }
 
-  const response = await fetch(API_BASE, {
+  const endpoint = settings.apiProxy ? settings.apiProxy : API_BASE;
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
