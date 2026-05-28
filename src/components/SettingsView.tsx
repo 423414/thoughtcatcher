@@ -22,8 +22,9 @@ const deepseekModels = [
 ];
 
 const providers: { value: AIProvider; label: string; desc: string }[] = [
-  { value: 'deepseek', label: 'DeepSeek', desc: '国内直连 · 无需梯子' },
-  { value: 'anthropic', label: 'Anthropic Claude', desc: '顶级分析 · 需梯子' },
+  { value: 'deepseek', label: 'DeepSeek', desc: '国内直连 · 性价比高' },
+  { value: 'openai-compatible', label: 'OpenAI 兼容', desc: '任意兼容接口 · 灵活' },
+  { value: 'anthropic', label: 'Claude', desc: '顶级分析 · 需梯子' },
 ];
 
 export default function SettingsView({ settings, onUpdate, onClose, forceSetup }: Props) {
@@ -33,7 +34,9 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isDeepSeek = settings.provider === 'deepseek';
-  const models = isDeepSeek ? deepseekModels : anthropicModels;
+  const isOpenAICompat = settings.provider === 'openai-compatible';
+  const isAnthropic = settings.provider === 'anthropic';
+  const models = isDeepSeek ? deepseekModels : isAnthropic ? anthropicModels : [];
 
   const handleSave = async () => {
     setSaving(true);
@@ -42,7 +45,10 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
   };
 
   const handleProviderChange = async (provider: AIProvider) => {
-    const defaultModel = provider === 'deepseek' ? 'deepseek-chat' : 'claude-sonnet-4-6';
+    let defaultModel: string;
+    if (provider === 'deepseek') defaultModel = 'deepseek-chat';
+    else if (provider === 'anthropic') defaultModel = 'claude-sonnet-4-6';
+    else defaultModel = settings.model || 'gpt-4o';
     await onUpdate({ provider, model: defaultModel });
   };
 
@@ -127,7 +133,7 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <Key className="w-4 h-4" />
-              {isDeepSeek ? 'DeepSeek' : 'Claude'} API Key
+              {isDeepSeek ? 'DeepSeek' : isAnthropic ? 'Claude' : ''} API Key
             </label>
             <input
               type="password"
@@ -151,38 +157,63 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
               <Cpu className="w-4 h-4" />
               模型选择
             </label>
-            <div className="space-y-2">
-              {models.map((m) => (
-                <button
-                  key={m.value}
-                  onClick={() => onUpdate({ model: m.value })}
-                  className={`w-full text-left p-3 rounded-xl border transition-colors ${
-                    settings.model === m.value
-                      ? 'border-indigo-400 bg-indigo-50'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="text-sm font-medium text-slate-800">{m.label}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">{m.desc}</div>
-                </button>
-              ))}
-            </div>
+            {isOpenAICompat ? (
+              <div>
+                <input
+                  type="text"
+                  value={settings.model || ''}
+                  onChange={(e) => onUpdate({ model: e.target.value.trim() })}
+                  placeholder="输入模型名，如 gpt-4o, gemini-2.5-flash, qwen-plus..."
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                />
+                <p className="text-xs text-slate-400 mt-1">输入你的 API 服务支持的模型名称</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {models.map((m) => (
+                  <button
+                    key={m.value}
+                    onClick={() => onUpdate({ model: m.value })}
+                    className={`w-full text-left p-3 rounded-xl border transition-colors ${
+                      settings.model === m.value
+                        ? 'border-indigo-400 bg-indigo-50'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-slate-800">{m.label}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{m.desc}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* API Proxy */}
+          {/* API Proxy / Endpoint */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
               <Server className="w-4 h-4" />
-              自定义 API 地址（可选）
+              {isOpenAICompat ? 'API 地址（必填）' : '自定义 API 地址（可选）'}
             </label>
             <input
               type="text"
               value={settings.apiProxy || ''}
               onChange={(e) => onUpdate({ apiProxy: e.target.value.trim() })}
-              placeholder={isDeepSeek ? '留空则使用 api.deepseek.com' : '留空则使用 api.anthropic.com'}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+              placeholder={
+                isOpenAICompat
+                  ? 'https://your-api.com/v1/chat/completions'
+                  : isDeepSeek
+                    ? '留空则使用 api.deepseek.com'
+                    : '留空则使用 api.anthropic.com'
+              }
+              className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent ${
+                isOpenAICompat && !settings.apiProxy?.trim() ? 'border-amber-400 bg-amber-50' : 'border-slate-300'
+              }`}
             />
-            <p className="text-xs text-slate-400 mt-1">如使用中转代理，在此填入地址</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {isOpenAICompat
+                ? '填入 OpenAI 兼容的 API 端点地址'
+                : '如使用中转代理，在此填入地址'}
+            </p>
           </div>
 
           <button

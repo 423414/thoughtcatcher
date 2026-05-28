@@ -26,10 +26,22 @@ async function callAPI(
   }
 
   const isDeepSeek = settings.provider === 'deepseek';
+  const isOpenAICompat = settings.provider === 'openai-compatible';
 
   // Determine endpoint
   let endpoint: string;
-  if (settings.apiProxy?.trim()) {
+  if (isOpenAICompat) {
+    // OpenAI compatible requires a custom endpoint
+    const customUrl = settings.apiProxy?.trim();
+    if (!customUrl) {
+      throw new Error('使用 OpenAI 兼容模式请在设置中填写 API 地址');
+    }
+    if (customUrl.includes('@') && customUrl.includes('://')) {
+      throw new Error('API 地址不能包含用户名密码');
+    }
+    try { new URL(customUrl); } catch { throw new Error('API 地址格式无效'); }
+    endpoint = customUrl;
+  } else if (settings.apiProxy?.trim()) {
     const proxy = settings.apiProxy.trim();
     if (proxy.includes('@') && proxy.includes('://')) {
       throw new Error('代理地址不能包含用户名密码');
@@ -40,7 +52,7 @@ async function callAPI(
     endpoint = isDeepSeek ? API_BASE_DEEPSEEK : API_BASE_ANTHROPIC;
   }
 
-  if (isDeepSeek) {
+  if (isDeepSeek || isOpenAICompat) {
     // DeepSeek: OpenAI-compatible format
     const systemMessage = { role: 'system', content: systemPrompt };
     const chatMessages = [systemMessage, ...messages.map((m) => ({
@@ -64,7 +76,7 @@ async function callAPI(
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `DeepSeek API 错误 ${response.status}`);
+      throw new Error(err.error?.message || `API 错误 ${response.status}`);
     }
 
     const data = await response.json();

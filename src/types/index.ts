@@ -69,7 +69,7 @@ export interface Note {
   createdAt: Date;
 }
 
-export type AIProvider = 'anthropic' | 'deepseek';
+export type AIProvider = 'anthropic' | 'deepseek' | 'openai-compatible';
 
 export type AnthropicModel = 'claude-sonnet-4-6' | 'claude-opus-4-7' | 'claude-haiku-4-5';
 export type DeepseekModel = 'deepseek-chat' | 'deepseek-reasoner';
