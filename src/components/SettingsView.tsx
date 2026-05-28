@@ -17,8 +17,10 @@ const anthropicModels = [
 ];
 
 const deepseekModels = [
-  { value: 'deepseek-chat', label: 'DeepSeek Chat', desc: '通用对话 · 128K 上下文 · 国内直连' },
-  { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner', desc: '深度推理 · 复杂问题 · 思考链' },
+  { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', desc: '最新主力 · 284B 参数 · 1M 上下文 · 国内直连' },
+  { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', desc: '旗舰推理 · 1.6T 参数 · 深度思考 · 5月31日前2.5折' },
+  { value: 'deepseek-chat', label: 'DeepSeek Chat (旧)', desc: '旧版通用 · 7月24日停止服务' },
+  { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner (旧)', desc: '旧版推理 · 7月24日停止服务' },
 ];
 
 const providers: { value: AIProvider; label: string; desc: string }[] = [
@@ -46,7 +48,7 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
 
   const handleProviderChange = async (provider: AIProvider) => {
     let defaultModel: string;
-    if (provider === 'deepseek') defaultModel = 'deepseek-chat';
+    if (provider === 'deepseek') defaultModel = 'deepseek-v4-flash';
     else if (provider === 'anthropic') defaultModel = 'claude-sonnet-4-6';
     else defaultModel = settings.model || 'gpt-4o';
     await onUpdate({ provider, model: defaultModel });

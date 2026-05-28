@@ -86,7 +86,7 @@ export async function setSetting(key: string, value: unknown) {
 const DEFAULT_SETTINGS: AppSettings = {
   apiKey: '',
   provider: 'deepseek',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
   maxTokens: 8000,
   apiProxy: '',
 };

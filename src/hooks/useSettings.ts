@@ -5,7 +5,7 @@ import type { AppSettings } from '../types';
 const defaults: AppSettings = {
   apiKey: '',
   provider: 'deepseek',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
   maxTokens: 8000,
   apiProxy: '',
 };
