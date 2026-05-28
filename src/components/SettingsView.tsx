@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import type { AppSettings, AIProvider } from '../types';
 import { getAppSettings } from '../db';
-import { X, Key, Cpu, Zap, Server, Download, Upload, Globe } from 'lucide-react';
+import { X, Key, Cpu, Zap, Server, Download, Upload, Globe, Database } from 'lucide-react';
+import { exportAllData, importAllData } from '../utils/dataExport';
 
 interface Props {
   settings: AppSettings;
@@ -235,8 +236,44 @@ export default function SettingsView({ settings, onUpdate, onClose, forceSetup }
             </button>
             <input ref={fileRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
           </div>
+
+          <div className="pt-3 border-t border-slate-200">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <Database className="w-4 h-4" />
+              数据迁移（换设备用）
+            </label>
+            <p className="text-xs text-slate-400 mb-2">导出全部想法+对话+笔记为一个文件，新设备导入即可</p>
+            <div className="flex gap-2">
+              <button onClick={async () => {
+                try {
+                  const json = await exportAllData();
+                  const blob = new Blob([json], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `想法捕手-${new Date().toISOString().slice(0,10)}.json`;
+                  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch { setImportMsg('导出失败'); setTimeout(() => setImportMsg(''), 3000); }
+              }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
+                <Download className="w-4 h-4" /> 导出全部数据
+              </button>
+              <label className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer">
+                <Upload className="w-4 h-4" /> 导入全部数据
+                <input type="file" accept=".json" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const { imported, restored } = await importAllData(text);
+                    setImportMsg(`导入 ${imported} 个新想法，更新 ${restored} 个`);
+                  } catch { setImportMsg('导入失败'); }
+                  setTimeout(() => setImportMsg(''), 4000);
+                }} />
+              </label>
+            </div>
+          </div>
           {importMsg && (
-            <p className={`text-xs text-center ${importMsg.includes('成功') ? 'text-emerald-600' : 'text-red-500'}`}>
+            <p className={`text-xs text-center ${importMsg.includes('成功') || importMsg.includes('导入') || importMsg.includes('导出') ? 'text-emerald-600' : 'text-red-500'}`}>
               {importMsg}
             </p>
           )}
