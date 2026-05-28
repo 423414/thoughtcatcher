@@ -76,6 +76,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
             {providerName} · {modelName.replace('deepseek-', '').replace('claude-', '')}
           </div>
         )}
+        <div className="mt-1 text-[9px] text-indigo-400/40 text-center">v28</div>
       </div>
 
       {/* Filters */}

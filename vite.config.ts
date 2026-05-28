@@ -24,6 +24,19 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        skipWaiting: true,
+        clientsClaim: true,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/423414\.github\.io\/thoughtcatcher\/.*/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 86400 },
+              networkTimeoutSeconds: 3,
+            },
+          },
+        ],
       },
     }),
   ],

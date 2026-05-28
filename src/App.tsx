@@ -3,6 +3,7 @@ import { useSettings } from './hooks/useSettings';
 import Layout from './components/Layout';
 import SettingsView from './components/SettingsView';
 import RandomReminder from './components/RandomReminder';
+import UpdatePrompt from './components/UpdatePrompt';
 
 type View = 'main' | 'settings';
 
@@ -33,6 +34,7 @@ function App() {
     <>
       <Layout settings={settings} onOpenSettings={handleOpenSettings} />
       <RandomReminder />
+      <UpdatePrompt />
     </>
   );
 }
