@@ -4,7 +4,7 @@ import {
   getMessages, addMessage, getConversations, updateConversation, getNote, createNote, deleteNote,
 } from '../db';
 import {
-  chat, generateNote, generateTitle, socraticQuestion,
+  chat, generateNote, socraticQuestion,
   generateCounterPerspective, generateHistoricalAnalogy,
   detectContradictions, findRelatedIdeas,
 } from '../services/claude';
@@ -104,12 +104,11 @@ export default function ConversationView({ conversationId, settings, onTitleChan
     await loadMessages();
 
     if (messages.length === 0) {
-      try {
-        const title = await generateTitle(userContent, settings);
-        await updateConversation(conversationId, { title });
-        onTitleChange();
-        setConvTitle(title);
-      } catch {}
+      // Auto-name: use first 30 chars of the first message as title
+      const autoTitle = userContent.replace(/\n/g, ' ').slice(0, 30) + (userContent.length > 30 ? '...' : '');
+      await updateConversation(conversationId, { title: autoTitle });
+      onTitleChange();
+      setConvTitle(autoTitle);
     }
 
     setLoading(true);

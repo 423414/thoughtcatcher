@@ -6,6 +6,9 @@ export interface Conversation {
   maturityScore?: MaturityScore;
   createdAt: Date;
   updatedAt: Date;
+  deleted: boolean;
+  pinned: boolean;
+  pinnedAt?: Date;
 }
 
 export interface MaturityScore {

@@ -10,6 +10,12 @@ class ThoughtCatcherDB extends Dexie {
 
   constructor() {
     super('ThoughtCatcherDB');
+    this.version(2).stores({
+      conversations: '++id, title, tags, stage, deleted, pinned, createdAt, updatedAt',
+      messages: '++id, conversationId, role, createdAt',
+      notes: '++id, conversationId, createdAt',
+      settings: '&key',
+    });
     this.version(1).stores({
       conversations: '++id, title, tags, stage, createdAt, updatedAt',
       messages: '++id, conversationId, role, createdAt',
@@ -29,29 +35,68 @@ export async function createConversation(title: string): Promise<number> {
     stage: 'inspiration',
     createdAt: new Date(),
     updatedAt: new Date(),
+    deleted: false,
+    pinned: false,
   });
 }
 
 export async function getConversations(): Promise<Conversation[]> {
-  return db.conversations.orderBy('updatedAt').reverse().toArray();
+  const all = await db.conversations
+    .filter((c) => !c.deleted)
+    .toArray();
+  // Sort: pinned first (by pinnedAt desc), then by updatedAt desc
+  return all.sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    if (a.pinned && b.pinned) {
+      return (b.pinnedAt?.getTime() || 0) - (a.pinnedAt?.getTime() || 0);
+    }
+    return b.updatedAt.getTime() - a.updatedAt.getTime();
+  });
+}
+
+export async function getTrashConversations(): Promise<Conversation[]> {
+  return db.conversations
+    .filter((c) => c.deleted === true)
+    .toArray();
 }
 
 export async function updateConversation(id: number, changes: Partial<Conversation>) {
   return db.conversations.update(id, { ...changes, updatedAt: new Date() });
 }
 
-export async function deleteConversation(id: number) {
+export async function softDeleteConversation(id: number) {
+  return db.conversations.update(id, { deleted: true, updatedAt: new Date() });
+}
+
+export async function restoreConversation(id: number) {
+  return db.conversations.update(id, { deleted: false, updatedAt: new Date() });
+}
+
+export async function permanentDeleteConversation(id: number) {
   await db.messages.where('conversationId').equals(id).delete();
   await db.notes.where('conversationId').equals(id).delete();
   return db.conversations.delete(id);
 }
 
+export async function deleteConversation(id: number) {
+  return softDeleteConversation(id);
+}
+
+export async function togglePinConversation(id: number) {
+  const conv = await db.conversations.get(id);
+  if (!conv) return;
+  const pinned = !conv.pinned;
+  await db.conversations.update(id, {
+    pinned,
+    pinnedAt: pinned ? new Date() : undefined,
+    updatedAt: new Date(),
+  });
+}
+
 // === Message CRUD ===
 export async function addMessage(msg: Omit<Message, 'id' | 'createdAt'>): Promise<number> {
-  const id = await db.messages.add({
-    ...msg,
-    createdAt: new Date(),
-  });
+  const id = await db.messages.add({ ...msg, createdAt: new Date() });
   await db.conversations.update(msg.conversationId, { updatedAt: new Date() });
   return id;
 }
