@@ -57,26 +57,30 @@ export default function Layout({ settings, onOpenSettings, onOpenLogin, user, on
   }, []);
 
   const handlePush = async () => {
-    setSyncMsg('上传中...');
+    if (!navigator.onLine) { setSyncMsg('无网络连接'); setTimeout(() => setSyncMsg(''), 3000); return; }
+    setSyncMsg('连接中...');
     try {
-      const { uploaded } = await pushToCloud();
+      const { uploaded } = await pushToCloud((msg) => setSyncMsg(msg));
       setSyncMsg(`已上传 ${uploaded} 个想法`);
     } catch (e: unknown) {
-      setSyncMsg(e instanceof Error ? e.message : '上传失败');
+      const msg = e instanceof Error ? e.message : '上传失败';
+      setSyncMsg(msg.includes('Failed to fetch') || msg.includes('NetworkError') ? '连接超时，同步需要梯子' : msg);
     }
-    setTimeout(() => setSyncMsg(''), 3000);
+    setTimeout(() => setSyncMsg(''), 5000);
   };
 
   const handlePull = async () => {
-    setSyncMsg('下载中...');
+    if (!navigator.onLine) { setSyncMsg('无网络连接'); setTimeout(() => setSyncMsg(''), 3000); return; }
+    setSyncMsg('连接中...');
     try {
-      const { downloaded } = await pullFromCloud();
+      const { downloaded } = await pullFromCloud((msg) => setSyncMsg(msg));
       await loadList();
       setSyncMsg(`已下载 ${downloaded} 个想法`);
     } catch (e: unknown) {
-      setSyncMsg(e instanceof Error ? e.message : '下载失败');
+      const msg = e instanceof Error ? e.message : '下载失败';
+      setSyncMsg(msg.includes('Failed to fetch') || msg.includes('NetworkError') ? '连接超时，同步需要梯子' : msg);
     }
-    setTimeout(() => setSyncMsg(''), 3000);
+    setTimeout(() => setSyncMsg(''), 5000);
   };
 
   return (

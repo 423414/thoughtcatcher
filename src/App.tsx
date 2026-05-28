@@ -17,12 +17,17 @@ function App() {
   useEffect(() => {
     const token = getToken();
     if (token) {
-      // Try to get user info
-      fetch('https://thoughtcatcher-api.liuyurun16.workers.dev/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()).then((d) => {
-        if (d.user) setUser(d.user);
-      }).catch(() => {});
+      // Trust token without verification (avoids proxy dependency)
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.username && payload.exp * 1000 > Date.now()) {
+          setUser({ username: payload.username });
+        } else {
+          apiLogout();
+        }
+      } catch {
+        apiLogout();
+      }
     }
   }, []);
 
