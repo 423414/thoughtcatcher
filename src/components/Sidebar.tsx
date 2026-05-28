@@ -177,10 +177,12 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
         )}
       </div>
 
-      {/* Trash button */}
-      <button onClick={onShowTrash} className="m-3 p-2 flex items-center justify-center gap-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors text-xs">
-        <Archive className="w-3.5 h-3.5" /> 回收站
-      </button>
+      {/* Trash button + Login */}
+      <div className="p-3 space-y-2">
+        <button onClick={onShowTrash} className="w-full p-2 flex items-center justify-center gap-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors text-xs">
+          <Archive className="w-3.5 h-3.5" /> 回收站
+        </button>
+      </div>
     </>
   );
 }
